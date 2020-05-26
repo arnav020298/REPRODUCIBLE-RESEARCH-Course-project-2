@@ -1,4 +1,184 @@
-Reproducible Research: Peer Assessment 2
+---
+title: "PA1_template"
+author: "Arnav Mehta"
+date: "5/27/2020"
+output: html_document
+---
+
+
+
+# Data read, processing, and analysis {.tabset}
+
+## Project Goals
+
+The goals of this project are to:
+ 1. Code for reading in the dataset and/or processing the data
+ 2. Histogram of the total number of steps taken each day
+ 3. Mean and median number of steps taken each day
+ 4. Time series plot of the average number of steps taken
+ 5. The 5-minute interval that, on average, contains the maximum number of steps
+ 6. Code to describe and show a strategy for imputing missing data
+ 7. Histogram of the total number of steps taken each day after missing values are imputed
+ 8. Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+ 9. All of the R code needed to reproduce the results (numbers, plots, etc.) in the report
+
+## Read in the data
+
+
+```r
+data1 <- read.csv("activity.csv")
+
+# Transform the variable to a date:
+data1$date <- as.Date(data1$date)
+```
+
+## Calculate a histogram of steps per day
+
+Start by calculating the number of steps each day as this will be used later as well.
+
+```r
+daily.data <- data1 %>% group_by(date) %>% 
+  summarise(total.steps=sum(steps, na.rm=T)) %>% 
+  as.data.frame()
+```
+
+
+Now the histogram:
+
+```r
+hist(daily.data$total.steps, main="Total number of steps", xlab="Total number of steps")
+```
+
+<img src="Project1_files/figure-html/unnamed-chunk-3-1.png" width="672" />
+
+## Calculate the mean and median number of steps each day
+
+
+```r
+mean(daily.data$total.steps, na.rm=T)
+```
+
+```
+## [1] 9354.23
+```
+
+```r
+median(daily.data$total.steps, na.rm=T)
+```
+
+```
+## [1] 10395
+```
+
+## Time series plot of the number of steps each day
+
+First, I want to summarize the average per time interval.
+
+```r
+interval.data <- data1 %>% group_by(interval) %>%
+  summarise(average.steps=mean(steps, na.rm=T))
+```
+
+
+
+```r
+plot(interval.data$interval, interval.data$average.steps,
+     xlab="Time interval", ylab="Average number of steps",
+     type='l')
+```
+
+<img src="Project1_files/figure-html/unnamed-chunk-6-1.png" width="672" />
+
+
+
+## The five minute interval that, on average, contains the maximum number of steps
+
+I will take the data, summarize the mean number of steps by the interval, then filter down to the highest value.
+
+
+```r
+interval.data[which.max(interval.data$average.steps),]
+```
+
+```
+## # A tibble: 1 x 2
+##   interval average.steps
+##      <int>         <dbl>
+## 1      835          206.
+```
+
+
+
+
+## Code to describe a strategy to impute missing information
+
+An important aspect of imputing is that we should impute based on the variables of interest.  Additional analyses will depend on the average number of steps per day, so I will impute that.
+
+The problem with using mean imputation is that it will cause us to dramatically underestimate variances in some cases.  Note that this should actually not impact the histogram of means unless a full day had no readings.  That being said, here is my strategy:
+
+ 1. Get the mean number of steps per day
+ 2. Merge this mean number on to the previous dataset
+ 3. Anything that is missing should be imputed
+
+In addition to this imputation we want some summaries about the number of missing values.
+
+### Summarize missing values
+
+```r
+sum(is.na(data1$steps))
+```
+
+```
+## [1] 2304
+```
+
+### Perform imputation
+
+```r
+data2 <- merge(data1, daily.data,
+               by="date") # Merge in the data
+data2$steps[is.na(data2$steps)] <- data2$total.steps[is.na(data2$steps)] # Impute
+```
+
+## An updated histogram after imputation
+
+First, create an updated daily dataset
+
+```r
+daily.data2 <- data2 %>%
+  group_by(date) %>%
+  summarise(total.steps=mean(steps))
+```
+
+Create the histogram
+
+```r
+hist(daily.data2$total.steps, main="Total number of steps", xlab="Total number of steps")
+```
+
+<img src="Project1_files/figure-html/unnamed-chunk-11-1.png" width="672" />
+
+
+
+## Panel plot of the average steps per time interval
+
+In order to do this I need to pull the day of the week and then summarise some things by that.
+
+
+```r
+data2$day.of.week <- weekdays(data2$date)
+data2$weekday <- ifelse(data2$day.of.week %in% c("Saturday", "Sunday"), "Weekend", "Weekday")
+
+daily.data3 <- data2 %>% group_by(weekday, interval) %>% summarise(mean.steps = mean(steps)) %>% as.data.frame()
+
+par(mfrow=c(1,2))
+with(daily.data3[daily.data3$weekday=="Weekday",], plot(interval, mean.steps,
+     xlab="Time", ylab="Average number of steps", main="Weekday", type='l', las=2, cex.axis=0.8))
+with(daily.data3[daily.data3$weekday=="Weekend",], plot(interval, mean.steps,
+     xlab="Time", ylab="Average number of steps", main="Weekend", type='l', las=2, cex.axis=0.8))
+```
+
+<img src="Project1_files/figure-html/unnamed-chunk-12-1.png" width="672" />Reproducible Research: Peer Assessment 2
 ==========================================
 krisna acharya
 
